@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 46, "column": 0}, "map": {"version":3,"sources":["file:///home/aziz-aman/Desktop/codes/projects/fitness-agent-next/src/app/api/health/route.ts"],"sourcesContent":["import { NextResponse } from \"next/server\";\n\nexport async function GET() {\n    return NextResponse.json({\n        status: \"ok\",\n        timestamp: new Date().toISOString(),\n    });\n}\n"],"names":[],"mappings":";;;;AAAA;;AAEO,eAAe;IAClB,OAAO,gJAAY,CAAC,IAAI,CAAC;QACrB,QAAQ;QACR,WAAW,IAAI,OAAO,WAAW;IACrC;AACJ"}}]
-}
