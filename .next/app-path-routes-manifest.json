@@ -1,0 +1,17 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/analyses/route": "/api/analyses",
+  "/api/analyze/route": "/api/analyze",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/api/auth/register/route": "/api/auth/register",
+  "/api/exercises/route": "/api/exercises",
+  "/api/health/route": "/api/health",
+  "/dashboard/analyze/page": "/dashboard/analyze",
+  "/dashboard/history/page": "/dashboard/history",
+  "/dashboard/page": "/dashboard",
+  "/favicon.ico/route": "/favicon.ico",
+  "/login/page": "/login",
+  "/page": "/",
+  "/signup/page": "/signup"
+}
