@@ -36,7 +36,7 @@ export default function HistoryPage() {
         score >= 80 ? "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20" : score >= 60 ? "from-amber-500/15 to-amber-500/5 border-amber-500/20" : "from-rose-500/15 to-rose-500/5 border-rose-500/20";
 
     return (
-        <div className="px-8 py-8">
+        <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             <div className="mb-6 flex items-center gap-3">
                 <Link href="/dashboard" className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/5 hover:text-white">
                     <ArrowLeft className="h-5 w-5" />
@@ -110,8 +110,8 @@ export default function HistoryPage() {
                                     </div>
                                     <div
                                         className={`rounded-full px-3 py-1 text-xs font-bold ${analysis.isFormCorrect
-                                                ? "bg-emerald-500/20 text-emerald-400"
-                                                : "bg-amber-500/20 text-amber-400"
+                                            ? "bg-emerald-500/20 text-emerald-400"
+                                            : "bg-amber-500/20 text-amber-400"
                                             }`}
                                     >
                                         {analysis.isFormCorrect ? "Good Form" : "Needs Work"}

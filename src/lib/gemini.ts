@@ -101,19 +101,32 @@ export async function analyzeExerciseVideo(
             ]),
             config: {
                 temperature: 0.2,
-                maxOutputTokens: 2048,
+                maxOutputTokens: 8192,
             },
         });
 
         const rawText = response.text?.trim() ?? "";
 
-        // Parse JSON — strip markdown fences if Gemini added them
+        // Parse JSON — strip markdown fences and handle truncated responses
         let feedback: ExerciseFeedback;
+        const cleaned = rawText.replace(/```json\n?|\n?```/g, "").trim();
         try {
-            feedback = JSON.parse(rawText);
-        } catch {
-            const cleaned = rawText.replace(/```json\n?|\n?```/g, "").trim();
             feedback = JSON.parse(cleaned);
+        } catch {
+            // Attempt to repair truncated JSON by closing open structures
+            let repaired = cleaned;
+            // Close any unclosed strings
+            const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+            if (quoteCount % 2 !== 0) repaired += '"';
+            // Close open arrays and objects
+            const opens = (repaired.match(/[{[]/g) || []).length;
+            const closes = (repaired.match(/[}\]]/g) || []).length;
+            for (let i = 0; i < opens - closes; i++) {
+                // Determine if we need ] or }
+                const lastOpen = repaired.lastIndexOf("[") > repaired.lastIndexOf("{") ? "]" : "}";
+                repaired += lastOpen;
+            }
+            feedback = JSON.parse(repaired);
         }
 
         return feedback;

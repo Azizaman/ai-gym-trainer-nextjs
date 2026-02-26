@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Upload, Video, Loader2, CheckCircle2, AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { Upload, Video, Loader2, CheckCircle2, AlertTriangle, ArrowLeft, RefreshCw, Lock, Crown, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import type { ExerciseFeedback } from "@/types";
 
@@ -28,6 +28,17 @@ const FITNESS_LEVELS = [
 
 type AnalyzeState = "select" | "uploading" | "analyzing" | "done" | "error";
 
+interface SubData {
+    plan: string;
+    planName: string;
+    usage: { used: number; limit: number; remaining: number };
+    limits: {
+        maxVideoSizeMB: number;
+        allowedExercises: string[] | "all";
+        features: { fullReport: boolean };
+    };
+}
+
 export default function AnalyzePage() {
     const [state, setState] = useState<AnalyzeState>("select");
     const [exerciseType, setExerciseType] = useState("squat");
@@ -36,6 +47,22 @@ export default function AnalyzePage() {
     const [feedback, setFeedback] = useState<ExerciseFeedback | null>(null);
     const [error, setError] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
+    const [sub, setSub] = useState<SubData | null>(null);
+
+    useEffect(() => {
+        fetch("/api/subscription")
+            .then((r) => r.json())
+            .then((d) => { if (d.success) setSub(d.data); })
+            .catch(() => { });
+    }, []);
+
+    const isExerciseLocked = (exId: string) => {
+        if (!sub) return false;
+        if (sub.limits.allowedExercises === "all") return false;
+        return !(sub.limits.allowedExercises as string[]).includes(exId);
+    };
+
+    const limitReached = sub ? sub.usage.remaining <= 0 : false;
 
     const handleFileSelect = (selectedFile: File) => {
         setFile(selectedFile);
@@ -68,6 +95,18 @@ export default function AnalyzePage() {
 
             setFeedback(data.data);
             setState("done");
+
+            // Update local sub data
+            if (sub && data.meta) {
+                setSub({
+                    ...sub,
+                    usage: {
+                        ...sub.usage,
+                        used: sub.usage.used + 1,
+                        remaining: data.meta.analysesRemaining,
+                    },
+                });
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong");
             setState("error");
@@ -84,9 +123,6 @@ export default function AnalyzePage() {
     const scoreColor = (score: number) =>
         score >= 80 ? "text-emerald-400" : score >= 60 ? "text-amber-400" : "text-rose-400";
 
-    const scoreBg = (score: number) =>
-        score >= 80 ? "bg-emerald-500" : score >= 60 ? "bg-amber-500" : "bg-rose-500";
-
     const severityColor = (severity: string) =>
         severity === "critical" ? "border-rose-500/30 bg-rose-500/10" : severity === "moderate" ? "border-amber-500/30 bg-amber-500/10" : "border-sky-500/30 bg-sky-500/10";
 
@@ -94,36 +130,75 @@ export default function AnalyzePage() {
         severity === "critical" ? "bg-rose-500/20 text-rose-400" : severity === "moderate" ? "bg-amber-500/20 text-amber-400" : "bg-sky-500/20 text-sky-400";
 
     return (
-        <div className="px-8 py-8">
+        <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             <div className="mb-6 flex items-center gap-3">
                 <Link href="/dashboard" className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/5 hover:text-white">
                     <ArrowLeft className="h-5 w-5" />
                 </Link>
-                <div>
+                <div className="flex-1">
                     <h1 className="text-2xl font-extrabold tracking-[-0.03em] text-white">Analyze Video</h1>
                     <p className="text-sm text-slate-400">Upload a workout video for AI-powered form analysis</p>
                 </div>
+                {/* Usage indicator */}
+                {sub && state === "select" && (
+                    <div className="hidden items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 sm:flex">
+                        <div className={`h-2 w-2 rounded-full ${sub.usage.remaining > 0 ? "bg-emerald-400" : "bg-rose-400"}`} />
+                        <span className="text-sm font-semibold text-slate-300">
+                            {sub.usage.remaining}/{sub.usage.limit} left
+                        </span>
+                        <span className="text-xs text-slate-500">this month</span>
+                    </div>
+                )}
             </div>
 
+            {/* Limit reached banner */}
+            {limitReached && state === "select" && (
+                <div className="mx-auto mb-6 max-w-3xl overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 to-rose-500/5 p-6 text-center sm:p-8">
+                    <Crown className="mx-auto mb-4 h-12 w-12 text-amber-400" />
+                    <h2 className="mb-2 text-xl font-bold text-white">Monthly Limit Reached</h2>
+                    <p className="mb-1 text-sm text-slate-400">
+                        You&apos;ve used all <span className="font-semibold text-white">{sub?.usage.limit}</span> analyses on the <span className="font-semibold text-white">{sub?.planName}</span> plan this month.
+                    </p>
+                    <p className="mb-6 text-sm text-slate-500">Upgrade your plan to continue analyzing videos.</p>
+                    <Link
+                        href="/dashboard/subscription"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-indigo-500 to-sky-500 px-6 py-3 text-sm font-bold text-white shadow-[0_4px_16px_rgba(99,102,241,0.3)] transition hover:-translate-y-0.5"
+                    >
+                        <Crown className="h-4 w-4" /> Upgrade Plan <ArrowRight className="h-4 w-4" />
+                    </Link>
+                </div>
+            )}
+
             {/* Select state */}
-            {state === "select" && (
+            {state === "select" && !limitReached && (
                 <div className="mx-auto max-w-3xl space-y-6">
                     {/* Exercise Selection */}
                     <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
                         <h3 className="mb-4 text-sm font-bold text-white">Exercise Type</h3>
                         <div className="flex flex-wrap gap-2">
-                            {EXERCISES.map((ex) => (
-                                <button
-                                    key={ex.id}
-                                    onClick={() => setExerciseType(ex.id)}
-                                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${exerciseType === ex.id
-                                            ? "bg-gradient-to-r from-indigo-500 to-sky-500 text-white shadow-[0_4px_12px_rgba(99,102,241,0.3)]"
-                                            : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:text-white"
-                                        }`}
-                                >
-                                    {ex.name}
-                                </button>
-                            ))}
+                            {EXERCISES.map((ex) => {
+                                const locked = isExerciseLocked(ex.id);
+                                return (
+                                    <button
+                                        key={ex.id}
+                                        onClick={() => !locked && setExerciseType(ex.id)}
+                                        disabled={locked}
+                                        className={`relative rounded-xl px-4 py-2 text-sm font-semibold transition ${locked
+                                                ? "cursor-not-allowed border border-white/5 bg-white/[0.02] text-slate-600"
+                                                : exerciseType === ex.id
+                                                    ? "bg-gradient-to-r from-indigo-500 to-sky-500 text-white shadow-[0_4px_12px_rgba(99,102,241,0.3)]"
+                                                    : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:text-white"
+                                            }`}
+                                    >
+                                        <span className={locked ? "opacity-50" : ""}>{ex.name}</span>
+                                        {locked && (
+                                            <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-bold text-indigo-400">
+                                                <Lock className="h-2.5 w-2.5" /> PRO
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -136,8 +211,8 @@ export default function AnalyzePage() {
                                     key={level.id}
                                     onClick={() => setFitnessLevel(level.id)}
                                     className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition ${fitnessLevel === level.id
-                                            ? "bg-gradient-to-r from-indigo-500 to-sky-500 text-white shadow-[0_4px_12px_rgba(99,102,241,0.3)]"
-                                            : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:text-white"
+                                        ? "bg-gradient-to-r from-indigo-500 to-sky-500 text-white shadow-[0_4px_12px_rgba(99,102,241,0.3)]"
+                                        : "border border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:text-white"
                                         }`}
                                 >
                                     {level.label}
@@ -175,6 +250,7 @@ export default function AnalyzePage() {
                                 <p className="mb-1 text-base font-bold text-white">Drop your workout video</p>
                                 <p className="text-sm text-slate-400">
                                     or <span className="font-semibold text-indigo-400">click to browse</span> — MP4, MOV, AVI, WebM
+                                    {sub && <span className="text-slate-500"> (max {sub.limits.maxVideoSizeMB} MB)</span>}
                                 </p>
                             </div>
                         )}
@@ -225,7 +301,7 @@ export default function AnalyzePage() {
             {state === "done" && feedback && (
                 <div className="mx-auto max-w-4xl space-y-6 animate-fade-up">
                     {/* Score Header */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 to-sky-900 p-8">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 to-sky-900 p-5 sm:p-8">
                         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.2),transparent)]" />
                         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                             <div>

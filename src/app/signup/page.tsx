@@ -36,20 +36,8 @@ export default function SignUpPage() {
                 return;
             }
 
-            // Auto sign-in after registration
-            const result = await signIn("credentials", {
-                email,
-                password,
-                redirect: false,
-            });
-
-            if (result?.error) {
-                setError("Account created! Please sign in.");
-                router.push("/login");
-            } else {
-                router.push("/dashboard");
-                router.refresh();
-            }
+            // Redirect to verify-email page instead of auto sign-in
+            router.push(`/verify-email?email=${encodeURIComponent(email)}`);
         } catch {
             setError("Something went wrong. Please try again.");
         } finally {

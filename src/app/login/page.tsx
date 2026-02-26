@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, ArrowRight, CheckCircle2 } from "lucide-react";
 
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const verified = searchParams.get("verified") === "true";
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -70,6 +72,13 @@ export default function LoginPage() {
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-[0_32px_96px_rgba(0,0,0,0.4)] backdrop-blur-2xl sm:p-10">
                     <h1 className="mb-2 text-2xl font-extrabold tracking-[-0.03em] text-white">Welcome back</h1>
                     <p className="mb-8 text-sm text-slate-400">Sign in to continue to your dashboard</p>
+
+                    {verified && (
+                        <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-400">
+                            <CheckCircle2 className="mr-1.5 inline h-4 w-4" />
+                            Email verified successfully! You can now sign in.
+                        </div>
+                    )}
 
                     {error && (
                         <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400">
@@ -159,5 +168,19 @@ export default function LoginPage() {
                 </p>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex min-h-screen items-center justify-center bg-slate-950">
+                    <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+                </div>
+            }
+        >
+            <LoginContent />
+        </Suspense>
     );
 }

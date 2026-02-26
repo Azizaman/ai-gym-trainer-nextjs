@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -16,9 +16,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts  Account[]
-  sessions  Session[]
-  analyses  AnalysisHistory[]
+  accounts     Account[]
+  sessions     Session[]
+  analyses     AnalysisHistory[]
+  subscription Subscription?
 }
 
 model Account {
@@ -45,6 +46,24 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  plan                  String    @default("starter")
+  status                String    @default("active")
+  analysesUsedThisMonth Int       @default(0)
+  currentPeriodStart    DateTime  @default(now())
+  currentPeriodEnd      DateTime?
+  lsSubscriptionId      String?   @unique
+  lsCustomerId          String?
+  lsVariantId           String?
+  currency              String    @default("INR")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -31,28 +31,55 @@ export const authConfig: NextAuthConfig = {
             const isAuthPage = ["/login", "/signup"].some((p) =>
                 nextUrl.pathname.startsWith(p)
             );
+            const isVerifyPage = nextUrl.pathname.startsWith("/verify-email");
 
+            // Unauthenticated users can't access dashboard
             if (isOnDashboard && !isLoggedIn) {
                 return false; // Redirect to login
             }
 
+            // Logged-in users trying to access dashboard — check email verification
+            if (isOnDashboard && isLoggedIn) {
+                const emailVerified = auth?.user?.emailVerified;
+                if (!emailVerified) {
+                    return Response.redirect(new URL("/verify-email", nextUrl));
+                }
+            }
+
+            // Authenticated & verified users on auth pages → go to dashboard
+            // Unverified users can access auth pages (e.g. "Back to Sign In" from verify-email)
             if (isAuthPage && isLoggedIn) {
-                return Response.redirect(new URL("/dashboard", nextUrl));
+                const emailVerified = auth?.user?.emailVerified;
+                if (emailVerified) {
+                    return Response.redirect(new URL("/dashboard", nextUrl));
+                }
+            }
+
+            // Verify page is always accessible (for both logged-in and not)
+            if (isVerifyPage) {
+                return true;
             }
 
             return true;
         },
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
             if (user) {
-                token.id = user.id;
+                token.id = user.id as string;
+                token.emailVerified = user.emailVerified || null;
+            }
+            // When session is updated (e.g., after email verification)
+            if (trigger === "update" && session?.emailVerified) {
+                token.emailVerified = session.emailVerified;
             }
             return token;
         },
         async session({ session, token }) {
             if (session.user) {
                 session.user.id = token.id as string;
+                session.user.emailVerified = token.emailVerified as Date | null;
             }
             return session;
         },
     },
 };
+

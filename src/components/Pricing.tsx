@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type Plan = {
     name: string;
@@ -124,14 +125,15 @@ export function Pricing() {
                                 </div>
                                 <p className={`mb-7 text-sm ${plan.popular ? "text-white/55" : "text-zinc-500"}`}>{plan.period}</p>
 
-                                <button
-                                    className={`w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 ${plan.popular
+                                <Link
+                                    href={i === 0 ? "/signup" : i === 1 ? "/signup?plan=pro" : "mailto:support@formai.app"}
+                                    className={`block w-full rounded-xl px-4 py-3 text-center text-sm font-bold text-white transition hover:-translate-y-0.5 ${plan.popular
                                         ? "bg-gradient-to-br from-indigo-400 to-sky-400 shadow-[0_4px_20px_rgba(129,140,248,0.4)]"
                                         : "bg-gradient-to-br from-indigo-500 to-sky-500 shadow-[0_4px_14px_rgba(99,102,241,0.3)]"
                                         }`}
                                 >
                                     {cta}
-                                </button>
+                                </Link>
 
                                 <div className={`my-7 h-px ${plan.popular ? "bg-white/15" : "bg-white/10"}`} />
 

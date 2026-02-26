@@ -1,17 +1,25 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
-import path from "path";
-
-function createPrismaClient() {
-    const dbPath = path.resolve(process.cwd(), "prisma", "dev.db");
-    const adapter = new PrismaLibSql({ url: `file:${dbPath}` });
-    return new PrismaClient({ adapter });
-}
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
 const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined;
 };
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+if (!globalForPrisma.prisma) {
+    const connectionString = process.env.DATABASE_URL!;
+    const pool = new Pool({
+        connectionString,
+        ssl: {
+            rejectUnauthorized: false,
+        },
+        connectionTimeoutMillis: 30000,
+        max: 5, // Limit the maximum number of connections to avoid exhausting NeonDB free tier
+    });
+    const adapter = new PrismaPg(pool);
+    globalForPrisma.prisma = new PrismaClient({ adapter });
+}
+
+export const prisma = globalForPrisma.prisma;
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

@@ -3,19 +3,27 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Video, Activity, TrendingUp, Clock, ArrowRight, Zap } from "lucide-react";
+import { Video, Activity, TrendingUp, Clock, ArrowRight, Zap, Crown } from "lucide-react";
 
 interface AnalysisSummary {
     id: string;
     exerciseType: string;
+    exerciseDetected: string;
     score: number;
     createdAt: string;
+}
+
+interface SubInfo {
+    plan: string;
+    planName: string;
+    usage: { used: number; limit: number; remaining: number };
 }
 
 export default function DashboardPage() {
     const { data: session } = useSession();
     const [recentAnalyses, setRecentAnalyses] = useState<AnalysisSummary[]>([]);
     const [stats, setStats] = useState({ total: 0, avgScore: 0 });
+    const [sub, setSub] = useState<SubInfo | null>(null);
 
     useEffect(() => {
         fetch("/api/analyses")
@@ -32,15 +40,22 @@ export default function DashboardPage() {
                 }
             })
             .catch(() => { });
+
+        fetch("/api/subscription")
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.success) setSub(data.data);
+            })
+            .catch(() => { });
     }, []);
 
     const firstName = session?.user?.name?.split(" ")[0] || "there";
 
     return (
-        <div className="px-8 py-8">
+        <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             {/* Welcome */}
             <div className="mb-8">
-                <h1 className="text-3xl font-extrabold tracking-[-0.03em] text-white">
+                <h1 className="text-2xl font-extrabold tracking-[-0.03em] text-white sm:text-3xl">
                     Welcome back, {firstName} 👋
                 </h1>
                 <p className="mt-1 text-sm text-slate-400">
@@ -49,7 +64,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Stats Grid */}
-            <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 {[
                     {
                         label: "Total Analyses",
@@ -75,11 +90,12 @@ export default function DashboardPage() {
                         glow: "rgba(14,165,233,0.15)",
                     },
                     {
-                        label: "Best Score",
-                        value: recentAnalyses.length > 0 ? Math.max(...recentAnalyses.map((a) => a.score)) : "—",
-                        icon: Zap,
-                        color: "from-amber-500 to-amber-600",
-                        glow: "rgba(245,158,11,0.15)",
+                        label: "Plan / Usage",
+                        value: sub ? `${sub.usage.remaining}/${sub.usage.limit}` : "—",
+                        icon: Crown,
+                        color: "from-purple-500 to-purple-600",
+                        glow: "rgba(168,85,247,0.15)",
+                        sublabel: sub ? `${sub.planName} plan` : undefined,
                     },
                 ].map((stat) => (
                     <div
@@ -95,6 +111,9 @@ export default function DashboardPage() {
                         </div>
                         <p className="text-2xl font-extrabold tracking-[-0.03em] text-white">{stat.value}</p>
                         <p className="mt-1 text-xs font-medium text-slate-500">{stat.label}</p>
+                        {(stat as { sublabel?: string }).sublabel && (
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-purple-400">{(stat as { sublabel?: string }).sublabel}</p>
+                        )}
                     </div>
                 ))}
             </div>
@@ -121,22 +140,26 @@ export default function DashboardPage() {
                     </div>
                 </Link>
 
-                {/* History CTA */}
+                {/* Subscription / Upgrade CTA */}
                 <Link
-                    href="/dashboard/history"
+                    href={sub?.plan === "starter" ? "/dashboard/subscription" : "/dashboard/history"}
                     className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03] p-6 transition hover:border-white/10 hover:bg-white/[0.05]"
                 >
-                    <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(14,165,233,0.1),transparent)]" />
+                    <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(168,85,247,0.1),transparent)]" />
                     <div className="relative">
                         <div className="mb-4 inline-flex rounded-2xl bg-slate-800 p-3">
-                            <Clock className="h-6 w-6 text-slate-300" />
+                            {sub?.plan === "starter" ? <Crown className="h-6 w-6 text-amber-400" /> : <Clock className="h-6 w-6 text-slate-300" />}
                         </div>
-                        <h3 className="mb-1 text-lg font-bold text-white">View Analysis History</h3>
+                        <h3 className="mb-1 text-lg font-bold text-white">
+                            {sub?.plan === "starter" ? "Upgrade Your Plan" : "View Analysis History"}
+                        </h3>
                         <p className="mb-4 text-sm text-slate-400">
-                            Review your past analyses and track your form improvement over time
+                            {sub?.plan === "starter"
+                                ? "Unlock unlimited analyses, all exercises, and full reports"
+                                : "Review your past analyses and track your form improvement"}
                         </p>
                         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-400 transition group-hover:gap-2.5 group-hover:text-white">
-                            View History <ArrowRight className="h-4 w-4" />
+                            {sub?.plan === "starter" ? "View Plans" : "View History"} <ArrowRight className="h-4 w-4" />
                         </span>
                     </div>
                 </Link>
@@ -163,7 +186,7 @@ export default function DashboardPage() {
                                         <Activity className="h-4 w-4 text-indigo-400" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-semibold capitalize text-white">{analysis.exerciseType.replace("-", " ")}</p>
+                                        <p className="text-sm font-semibold capitalize text-white">{analysis.exerciseDetected || analysis.exerciseType.replace("-", " ")}</p>
                                         <p className="text-xs text-slate-500">
                                             {new Date(analysis.createdAt).toLocaleDateString("en-US", {
                                                 month: "short",
@@ -176,10 +199,10 @@ export default function DashboardPage() {
                                 <div className="flex items-center gap-2">
                                     <span
                                         className={`text-lg font-extrabold ${analysis.score >= 80
-                                                ? "text-emerald-400"
-                                                : analysis.score >= 60
-                                                    ? "text-amber-400"
-                                                    : "text-rose-400"
+                                            ? "text-emerald-400"
+                                            : analysis.score >= 60
+                                                ? "text-amber-400"
+                                                : "text-rose-400"
                                             }`}
                                     >
                                         {analysis.score}
@@ -193,7 +216,7 @@ export default function DashboardPage() {
             )}
 
             {recentAnalyses.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center">
+                <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center sm:p-12">
                     <Video className="mx-auto mb-4 h-12 w-12 text-slate-600" />
                     <h3 className="mb-2 text-lg font-bold text-white">No analyses yet</h3>
                     <p className="mb-6 text-sm text-slate-400">
