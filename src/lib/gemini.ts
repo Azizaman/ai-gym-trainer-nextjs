@@ -33,10 +33,32 @@ function buildPrompt(exerciseType: string, options: AnalysisOptions): string {
     const focusAreas = options.focusAreas?.join(", ") || "general form";
     const fitnessLevel = options.fitnessLevel || "intermediate";
 
-    return `Expert trainer. Analyze ${exerciseType} video for ${fitnessLevel} athlete. Focus: ${focusAreas}. 
+    return `You are an expert certified personal trainer and biomechanics specialist.
+Analyze this ${exerciseType} video for a ${fitnessLevel} level athlete.
 
-Respond JSON only (no markdown):
-{"isFormCorrect":boolean,"score":0-100,"exerciseDetected":"string","repCount":number|null,"goodPoints":string[],"issues":[{"severity":"critical"|"moderate"|"minor","body_part":"string","description":"string"}],"corrections":string[],"safetyWarnings":string[],"summary":"string","recommendedDrills":string[]}`;
+Focus on: ${focusAreas}
+
+Provide a detailed form analysis. Be specific, actionable, and encouraging.
+
+Respond ONLY with a valid JSON object in this exact shape (no markdown, no backticks):
+{
+  "isFormCorrect": boolean,
+  "score": number (0-100),
+  "exerciseDetected": string,
+  "repCount": number or null,
+  "goodPoints": string[],
+  "issues": [
+    {
+      "severity": "critical" | "moderate" | "minor",
+      "body_part": string,
+      "description": string
+    }
+  ],
+  "corrections": string[],
+  "safetyWarnings": string[],
+  "summary": string,
+  "recommendedDrills": string[]
+}`;
 }
 
 export async function analyzeExerciseVideo(
