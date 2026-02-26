@@ -14,7 +14,7 @@ if (!globalForPrisma.prisma) {
             rejectUnauthorized: false,
         },
         connectionTimeoutMillis: 30000,
-        max: 5, // Limit the maximum number of connections to avoid exhausting NeonDB free tier
+        max: 15, // Provide enough connections for concurrent Next.js API dev calls
     });
     const adapter = new PrismaPg(pool);
     globalForPrisma.prisma = new PrismaClient({ adapter });

@@ -4,5 +4,5 @@ node_modules
 .next/
 node_modules/
 out/
-
+dev.db
 /src/generated/prisma

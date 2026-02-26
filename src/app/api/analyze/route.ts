@@ -113,30 +113,29 @@ export async function POST(request: Request) {
 
         // Save to database & increment usage
         try {
-            await prisma.$transaction([
-                prisma.analysisHistory.create({
-                    data: {
-                        userId: session.user.id,
-                        exerciseType,
-                        fitnessLevel,
-                        score: feedback.score,
-                        isFormCorrect: feedback.isFormCorrect,
-                        exerciseDetected: feedback.exerciseDetected || exerciseType,
-                        repCount: feedback.repCount || null,
-                        summary: feedback.summary || "",
-                        goodPoints: JSON.stringify(feedback.goodPoints || []),
-                        issues: JSON.stringify(feedback.issues || []),
-                        corrections: JSON.stringify(feedback.corrections || []),
-                        safetyWarnings: JSON.stringify(feedback.safetyWarnings || []),
-                        recommendedDrills: JSON.stringify(feedback.recommendedDrills || []),
-                        fileSizeMB: video.size / 1024 / 1024,
-                    },
-                }),
-                prisma.subscription.update({
-                    where: { id: subscription!.id },
-                    data: { analysesUsedThisMonth: { increment: 1 } },
-                }),
-            ]);
+            await prisma.analysisHistory.create({
+                data: {
+                    userId: session.user.id,
+                    exerciseType,
+                    fitnessLevel,
+                    score: feedback.score,
+                    isFormCorrect: feedback.isFormCorrect,
+                    exerciseDetected: feedback.exerciseDetected || exerciseType,
+                    repCount: feedback.repCount || null,
+                    summary: feedback.summary || "",
+                    goodPoints: JSON.stringify(feedback.goodPoints || []),
+                    issues: JSON.stringify(feedback.issues || []),
+                    corrections: JSON.stringify(feedback.corrections || []),
+                    safetyWarnings: JSON.stringify(feedback.safetyWarnings || []),
+                    recommendedDrills: JSON.stringify(feedback.recommendedDrills || []),
+                    fileSizeMB: video.size / 1024 / 1024,
+                },
+            });
+
+            await prisma.subscription.update({
+                where: { id: subscription!.id },
+                data: { analysesUsedThisMonth: { increment: 1 } },
+            });
         } catch (dbError) {
             console.warn("Failed to save analysis to DB:", dbError);
             // Don't fail the request if DB save fails
