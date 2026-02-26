@@ -14,6 +14,7 @@ import {
     Menu,
     X,
     Crown,
+    Mail,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
     { href: "/dashboard/analyze", label: "Analyze Video", icon: Video },
     { href: "/dashboard/history", label: "History", icon: History },
     { href: "/dashboard/subscription", label: "Subscription", icon: Crown },
+    { href: "mailto:support@formai.example.com", label: "Contact Support", icon: Mail },
 ];
 
 const PLAN_BADGE_STYLES: Record<string, string> = {

@@ -6,13 +6,13 @@ const APP_NAME = "FormAI";
 const FROM_EMAIL = process.env.EMAIL_FROM || "FormAI <onboarding@resend.dev>";
 
 export async function sendVerificationEmail(email: string, token: string) {
-    const verifyUrl = `${process.env.AUTH_URL}/api/auth/verify-email?token=${token}`;
+  const verifyUrl = `${process.env.AUTH_URL}/api/auth/verify-email?token=${token}`;
 
-    await resend.emails.send({
-        from: FROM_EMAIL,
-        to: email,
-        subject: `Verify your email — ${APP_NAME}`,
-        html: `
+  const { data, error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Verify your email — ${APP_NAME}`,
+    html: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -72,5 +72,11 @@ export async function sendVerificationEmail(email: string, token: string) {
 </body>
 </html>
         `.trim(),
-    });
+  });
+
+  if (error) {
+    console.error("Resend Email Error:", error);
+  } else {
+    console.log("Email sent successfully:", data);
+  }
 }

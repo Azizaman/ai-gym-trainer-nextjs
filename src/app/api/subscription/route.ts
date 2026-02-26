@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PLAN_LIMITS, shouldResetUsage, getRemainingAnalyses } from "@/lib/plans";
-import { cancelSubscription } from "@lemonsqueezy/lemonsqueezy.js";
-import "@/lib/lemonsqueezy"; // ensure SDK is initialized
+import { paddle } from "@/lib/paddle";
 import type { PlanType } from "@/lib/plans";
 
 /** GET — Return current subscription, usage, and limits */
@@ -14,7 +13,7 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Find or create subscription (handles legacy / OAuth users)
+        // Find or create subscription
         let subscription = await prisma.subscription.findUnique({
             where: { userId: session.user.id },
         });
@@ -52,7 +51,7 @@ export async function GET() {
                 planName: limits.name,
                 status: subscription.status,
                 currency: subscription.currency || "INR",
-                hasActiveLs: !!subscription.lsSubscriptionId,
+                hasActivePaddle: !!subscription.paddleSubscriptionId,
                 usage: {
                     used: subscription.analysesUsedThisMonth,
                     limit: limits.analysesPerMonth,
@@ -76,7 +75,7 @@ export async function GET() {
     }
 }
 
-/** POST — Downgrade to starter (cancels Lemon Squeezy sub) or upgrade initiation */
+/** POST — Downgrade to starter (cancels Paddle sub) or upgrade initiation */
 export async function POST(request: Request) {
     try {
         const session = await auth();
@@ -87,7 +86,7 @@ export async function POST(request: Request) {
         const { plan } = await request.json();
 
         // Only allow downgrade to starter via this endpoint
-        // Upgrades to paid plans must go through /api/lemonsqueezy/create-checkout
+        // Upgrades to paid plans must go through checkout
         if (plan !== "starter") {
             return NextResponse.json(
                 {
@@ -109,12 +108,14 @@ export async function POST(request: Request) {
             );
         }
 
-        // Cancel active Lemon Squeezy subscription if exists
-        if (subscription.lsSubscriptionId) {
+        // Cancel active Paddle subscription if exists
+        if (subscription.paddleSubscriptionId) {
             try {
-                await cancelSubscription(subscription.lsSubscriptionId);
+                await paddle.subscriptions.cancel(subscription.paddleSubscriptionId, {
+                    effectiveFrom: "immediately",
+                });
             } catch (err) {
-                console.warn("Failed to cancel LS subscription (may already be cancelled):", err);
+                console.warn("Failed to cancel Paddle subscription (may already be cancelled):", err);
             }
         }
 
@@ -124,9 +125,9 @@ export async function POST(request: Request) {
             data: {
                 plan: "starter",
                 status: "active",
-                lsSubscriptionId: null,
-                lsCustomerId: null,
-                lsVariantId: null,
+                paddleSubscriptionId: null,
+                paddleCustomerId: null,
+                paddlePriceId: null,
                 analysesUsedThisMonth: 0,
                 currentPeriodStart: new Date(),
                 currentPeriodEnd: null,

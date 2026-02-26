@@ -58,9 +58,9 @@ model Subscription {
   analysesUsedThisMonth Int       @default(0)
   currentPeriodStart    DateTime  @default(now())
   currentPeriodEnd      DateTime?
-  lsSubscriptionId      String?   @unique
-  lsCustomerId          String?
-  lsVariantId           String?
+  paddleSubscriptionId  String?   @unique
+  paddleCustomerId      String?
+  paddlePriceId         String?
   currency              String    @default("INR")
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -77,22 +77,22 @@ model VerificationToken {
 }
 
 model AnalysisHistory {
-  id              String   @id @default(cuid())
-  userId          String
-  exerciseType    String
-  fitnessLevel    String   @default("intermediate")
-  score           Int
-  isFormCorrect   Boolean
-  exerciseDetected String
-  repCount        Int?
-  summary         String
-  goodPoints      String   // JSON string
-  issues          String   // JSON string
-  corrections     String   // JSON string
-  safetyWarnings  String   // JSON string
+  id                String   @id @default(cuid())
+  userId            String
+  exerciseType      String
+  fitnessLevel      String   @default("intermediate")
+  score             Int
+  isFormCorrect     Boolean
+  exerciseDetected  String
+  repCount          Int?
+  summary           String
+  goodPoints        String // JSON string
+  issues            String // JSON string
+  corrections       String // JSON string
+  safetyWarnings    String // JSON string
   recommendedDrills String // JSON string
-  fileSizeMB      Float?
-  createdAt       DateTime @default(now())
+  fileSizeMB        Float?
+  createdAt         DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Crown, Zap, Users, Check, Loader2, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
+import { initializePaddle, Paddle } from "@paddle/paddle-js";
 
 type PlanType = "starter" | "pro" | "team";
 type Currency = "INR" | "USD";
@@ -11,7 +12,7 @@ interface SubscriptionData {
     planName: string;
     status: string;
     currency: Currency;
-    hasActiveLs: boolean;
+    hasActivePaddle: boolean;
     usage: { used: number; limit: number; remaining: number };
     limits: {
         maxVideoSizeMB: number;
@@ -121,6 +122,7 @@ export default function SubscriptionPage() {
     const [upgrading, setUpgrading] = useState<PlanType | null>(null);
     const [currency, setCurrency] = useState<Currency>("INR");
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+    const [paddle, setPaddle] = useState<Paddle | null>(null);
 
     const showToast = (message: string, type: "success" | "error") => {
         setToast({ message, type });
@@ -141,21 +143,26 @@ export default function SubscriptionPage() {
     useEffect(() => {
         setCurrency(detectCurrency());
         fetchSubscription();
-    }, [fetchSubscription]);
 
-    // Show success toast if redirected back from Lemon Squeezy checkout
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("success") === "true") {
-            showToast("Payment successful! Your plan will be activated shortly.", "success");
-            // Clean up URL param
-            window.history.replaceState({}, "", window.location.pathname);
-            // Refresh subscription after a short delay (webhook may still be processing)
-            setTimeout(() => fetchSubscription(), 3000);
-        }
-    }, [fetchSubscription]);
+        // Initialize Paddle
+        initializePaddle({
+            environment: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === "sandbox" ? "sandbox" : "production",
+            token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "test_client_token",
+            eventCallback: function (data) {
+                if (data.name === "checkout.completed") {
+                    showToast("Payment successful! Your plan will be activated shortly.", "success");
+                    paddle?.Checkout.close();
+                    setTimeout(() => fetchSubscription(), 3000);
+                }
+            }
+        }).then((paddleInstance) => {
+            if (paddleInstance) {
+                setPaddle(paddleInstance);
+            }
+        });
+    }, [fetchSubscription, paddle]);
 
-    /** Handle paid plan upgrade via Lemon Squeezy Checkout */
+    /** Handle paid plan upgrade via Paddle Checkout */
     const handleUpgrade = async (plan: PlanType) => {
         if (upgrading) return;
 
@@ -183,31 +190,39 @@ export default function SubscriptionPage() {
             return;
         }
 
-        // Paid plan — redirect to Lemon Squeezy checkout
+        if (!paddle) {
+            showToast("Payment system is still loading. Please try again in a moment.", "error");
+            return;
+        }
+
+        // Paid plan — redirect to Paddle checkout via our secure transaction API
         setUpgrading(plan);
         try {
-            const res = await fetch("/api/lemonsqueezy/create-checkout", {
+            const res = await fetch("/api/paddle/create-transaction", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ plan, currency }),
             });
             const data = await res.json();
 
-            if (!data.success || !data.data?.checkoutUrl) {
-                showToast(data.error || "Failed to create checkout", "error");
+            if (!data.success || !data.data?.transactionId) {
+                showToast(data.error || "Failed to initiate payment", "error");
                 setUpgrading(null);
                 return;
             }
 
-            // Redirect to Lemon Squeezy hosted checkout
-            window.location.href = data.data.checkoutUrl;
+            // Open Paddle Checkout modal
+            paddle.Checkout.open({
+                transactionId: data.data.transactionId
+            });
         } catch {
             showToast("Failed to initiate payment. Please try again.", "error");
+        } finally {
             setUpgrading(null);
         }
     };
 
-    if (loading) {
+    if (loading && !sub) {
         return (
             <div className="flex min-h-[60vh] items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
@@ -463,9 +478,9 @@ export default function SubscriptionPage() {
                 )}
             </div>
 
-            {/* Lemon Squeezy branding */}
+            {/* Paddle branding */}
             <div className="mt-4 text-center text-xs text-slate-600">
-                Payments powered by Lemon Squeezy
+                Payments powered by Paddle
             </div>
         </div>
     );

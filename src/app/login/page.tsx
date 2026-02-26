@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -10,11 +10,21 @@ function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const verified = searchParams.get("verified") === "true";
+    const urlError = searchParams.get("error");
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (urlError === "OAuthAccountNotLinked") {
+            setError("An account with this email already exists. Please sign in with your original method (e.g. Email/Password).");
+        } else if (urlError) {
+            setError("Authentication error. Please try again.");
+        }
+    }, [urlError]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

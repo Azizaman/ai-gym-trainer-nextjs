@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, Lock, User, Loader2, ArrowRight } from "lucide-react";
 
-export default function SignUpPage() {
+function SignUpContent() {
     const router = useRouter();
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
@@ -14,6 +14,17 @@ export default function SignUpPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+
+    const searchParams = useSearchParams();
+    const urlError = searchParams.get("error");
+
+    useEffect(() => {
+        if (urlError === "OAuthAccountNotLinked") {
+            setError("An account with this email already exists. Please sign in with your original method (e.g. Email/Password).");
+        } else if (urlError) {
+            setError("Authentication error. Please try again.");
+        }
+    }, [urlError]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -186,5 +197,19 @@ export default function SignUpPage() {
                 </p>
             </div>
         </div>
+    );
+}
+
+export default function SignUpPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex min-h-screen items-center justify-center bg-slate-950">
+                    <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+                </div>
+            }
+        >
+            <SignUpContent />
+        </Suspense>
     );
 }

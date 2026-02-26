@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Video, Activity, TrendingUp, Clock, ArrowRight, Zap, Crown } from "lucide-react";
+import { Video, Activity, TrendingUp, Clock, ArrowRight, Crown } from "lucide-react";
 
 interface AnalysisSummary {
     id: string;
@@ -24,6 +24,7 @@ export default function DashboardPage() {
     const [recentAnalyses, setRecentAnalyses] = useState<AnalysisSummary[]>([]);
     const [stats, setStats] = useState({ total: 0, avgScore: 0 });
     const [sub, setSub] = useState<SubInfo | null>(null);
+    const [thisWeekCount, setThisWeekCount] = useState(0);
 
     useEffect(() => {
         fetch("/api/analyses")
@@ -37,6 +38,10 @@ export default function DashboardPage() {
                             ? Math.round(data.data.reduce((sum: number, a: AnalysisSummary) => sum + a.score, 0) / total)
                             : 0;
                     setStats({ total, avgScore });
+                    const now = Date.now();
+                    setThisWeekCount(
+                        data.data.filter((a: AnalysisSummary) => new Date(a.createdAt).getTime() > now - 7 * 86400000).length
+                    );
                 }
             })
             .catch(() => { });
@@ -82,9 +87,7 @@ export default function DashboardPage() {
                     },
                     {
                         label: "This Week",
-                        value: recentAnalyses.filter(
-                            (a) => new Date(a.createdAt) > new Date(Date.now() - 7 * 86400000)
-                        ).length,
+                        value: thisWeekCount,
                         icon: Clock,
                         color: "from-sky-500 to-sky-600",
                         glow: "rgba(14,165,233,0.15)",

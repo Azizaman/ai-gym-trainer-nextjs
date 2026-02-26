@@ -1,8 +1,8 @@
 const COLUMNS = [
-    { title: "Product", links: ["Features", "How It Works", "Pricing", "Changelog", "Roadmap"] },
-    { title: "Company", links: ["About", "Blog", "Careers", "Press", "Contact"] },
-    { title: "Resources", links: ["Documentation", "API Reference", "Status", "Security"] },
-    { title: "Legal", links: ["Privacy Policy", "Terms of Service", "Cookie Policy"] },
+    { title: "Product", links: [{ label: "Features", href: "#" }, { label: "How It Works", href: "#" }, { label: "Pricing", href: "#" }, { label: "Changelog", href: "#" }, { label: "Roadmap", href: "#" }] },
+    { title: "Company", links: [{ label: "About", href: "#" }, { label: "Blog", href: "#" }, { label: "Careers", href: "#" }, { label: "Press", href: "#" }, { label: "Contact", href: "mailto:support@formai.example.com" }] },
+    { title: "Resources", links: [{ label: "Documentation", href: "#" }, { label: "API Reference", href: "#" }, { label: "Status", href: "#" }, { label: "Security", href: "#" }] },
+    { title: "Legal", links: [{ label: "Privacy Policy", href: "#" }, { label: "Terms of Service", href: "#" }, { label: "Cookie Policy", href: "#" }] },
 ];
 
 export function Footer() {
@@ -41,9 +41,9 @@ export function Footer() {
                             <p className="mb-4 text-xs font-bold tracking-[0.1em] text-zinc-500">{column.title.toUpperCase()}</p>
                             <ul className="flex list-none flex-col gap-2.5">
                                 {column.links.map((link) => (
-                                    <li key={link}>
-                                        <a href="#" className="text-sm text-zinc-600 transition hover:text-white">
-                                            {link}
+                                    <li key={link.label}>
+                                        <a href={link.href} className="text-sm text-zinc-600 transition hover:text-white">
+                                            {link.label}
                                         </a>
                                     </li>
                                 ))}

@@ -18,6 +18,19 @@ interface Analysis {
 export default function HistoryPage() {
     const [analyses, setAnalyses] = useState<Analysis[]>([]);
     const [loading, setLoading] = useState(true);
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+    const toggleExpand = (id: string) => {
+        setExpandedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
 
     useEffect(() => {
         fetch("/api/analyses")
@@ -74,7 +87,8 @@ export default function HistoryPage() {
                     {analyses.map((analysis) => (
                         <div
                             key={analysis.id}
-                            className={`relative overflow-hidden rounded-2xl border bg-gradient-to-r p-5 ${scoreBg(analysis.score)}`}
+                            className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-r p-5 cursor-pointer transition-all hover:border-indigo-500/50 ${scoreBg(analysis.score)}`}
+                            onClick={() => toggleExpand(analysis.id)}
                         >
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-4">
@@ -120,7 +134,14 @@ export default function HistoryPage() {
                             </div>
 
                             {analysis.summary && (
-                                <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-300">{analysis.summary}</p>
+                                <div className="mt-4">
+                                    <p className={`text-sm leading-6 text-slate-300 ${expandedIds.has(analysis.id) ? "" : "line-clamp-2"}`}>
+                                        {analysis.summary}
+                                    </p>
+                                    <p className="mt-2 text-xs font-medium text-indigo-400 group-hover:text-indigo-300 transition-colors">
+                                        {expandedIds.has(analysis.id) ? "Show less" : "Show more"}
+                                    </p>
+                                </div>
                             )}
                         </div>
                     ))}

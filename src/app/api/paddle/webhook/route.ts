@@ -1,44 +1,43 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import crypto from "crypto";
+import { paddle } from "@/lib/paddle";
 
-/** Lemon Squeezy sends webhook events here — we verify the signature */
+/** Paddle sends webhook events here — we verify the signature */
 export async function POST(request: Request) {
     try {
-        const rawBody = await request.text();
-        const signature = request.headers.get("x-signature");
+        const signature = request.headers.get("paddle-signature");
 
         if (!signature) {
             return NextResponse.json({ error: "Missing signature" }, { status: 400 });
         }
 
-        // Verify webhook signature (HMAC SHA256 hex digest)
-        const expectedSignature = crypto
-            .createHmac("sha256", process.env.LEMONSQUEEZY_WEBHOOK_SECRET!)
-            .update(rawBody)
-            .digest("hex");
+        const rawBody = await request.text();
 
-        if (expectedSignature !== signature) {
+        // Verify webhook signature
+        const eventData = await paddle.webhooks.unmarshal(
+            rawBody,
+            process.env.PADDLE_WEBHOOK_SECRET!,
+            signature
+        );
+
+        if (!eventData) {
             console.error("Webhook signature mismatch");
             return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
         }
 
-        const event = JSON.parse(rawBody);
-        const eventName: string = event.meta?.event_name;
-        const customData = event.meta?.custom_data;
-        const userId: string | undefined = customData?.user_id;
-        const plan: string | undefined = customData?.plan;
-        const subAttributes = event.data?.attributes;
-        const lsSubscriptionId = String(event.data?.id);
-        const lsCustomerId = subAttributes?.customer_id ? String(subAttributes.customer_id) : null;
-        const lsVariantId = subAttributes?.variant_id ? String(subAttributes.variant_id) : null;
-
-        console.log(`[LemonSqueezy Webhook] ${eventName} — userId: ${userId}`);
+        const eventName = eventData.eventType;
+        console.log(`[Paddle Webhook] ${eventName}`);
 
         switch (eventName) {
-            case "subscription_created": {
+            case "subscription.created": {
+                const subscription = eventData.data;
+                const customData = subscription.customData;
+
+                const userId: string | undefined = customData?.user_id;
+                const plan: string | undefined = customData?.plan;
+
                 if (!userId || !plan) {
-                    console.error("Missing userId or plan in custom_data for subscription_created");
+                    console.error("Missing userId or plan in customData for subscription.created");
                     break;
                 }
 
@@ -51,20 +50,20 @@ export async function POST(request: Request) {
                     create: {
                         userId,
                         plan,
-                        status: "active",
-                        lsSubscriptionId,
-                        lsCustomerId,
-                        lsVariantId,
+                        status: subscription.status === "active" ? "active" : "pending",
+                        paddleSubscriptionId: subscription.id,
+                        paddleCustomerId: subscription.customerId,
+                        paddlePriceId: subscription.items?.[0]?.price?.id || null,
                         analysesUsedThisMonth: 0,
                         currentPeriodStart: now,
                         currentPeriodEnd: periodEnd,
                     },
                     update: {
                         plan,
-                        status: "active",
-                        lsSubscriptionId,
-                        lsCustomerId,
-                        lsVariantId,
+                        status: subscription.status === "active" ? "active" : "pending",
+                        paddleSubscriptionId: subscription.id,
+                        paddleCustomerId: subscription.customerId,
+                        paddlePriceId: subscription.items?.[0]?.price?.id || null,
                         analysesUsedThisMonth: 0,
                         currentPeriodStart: now,
                         currentPeriodEnd: periodEnd,
@@ -73,51 +72,51 @@ export async function POST(request: Request) {
                 break;
             }
 
-            case "subscription_updated": {
-                if (!lsSubscriptionId) break;
-
-                const status = subAttributes?.status;
+            case "subscription.updated": {
+                const subscription = eventData.data;
+                const status = subscription.status;
                 const dbStatus =
                     status === "active" ? "active" :
                         status === "past_due" ? "past_due" :
                             status === "paused" ? "past_due" :
-                                status === "cancelled" ? "cancelled" :
-                                    status === "expired" ? "cancelled" :
-                                        "active";
+                                status === "canceled" ? "cancelled" :
+                                    "active";
 
                 await prisma.subscription.updateMany({
-                    where: { lsSubscriptionId },
+                    where: { paddleSubscriptionId: subscription.id },
                     data: { status: dbStatus },
                 });
                 break;
             }
 
-            case "subscription_cancelled":
-            case "subscription_expired": {
-                if (!lsSubscriptionId) break;
+            case "subscription.canceled": {
+                const subscription = eventData.data;
 
                 await prisma.subscription.updateMany({
-                    where: { lsSubscriptionId },
+                    where: { paddleSubscriptionId: subscription.id },
                     data: {
                         plan: "starter",
                         status: "cancelled",
-                        lsSubscriptionId: null,
-                        lsCustomerId: null,
-                        lsVariantId: null,
+                        paddleSubscriptionId: null,
+                        paddleCustomerId: null,
+                        paddlePriceId: null,
                     },
                 });
                 break;
             }
 
-            case "subscription_payment_success": {
-                if (!lsSubscriptionId) break;
+            case "transaction.completed": {
+                // We update the period on transaction completion (recurring payment)
+                const transaction = eventData.data;
+
+                if (!transaction.subscriptionId) break;
 
                 const now = new Date();
                 const periodEnd = new Date(now);
                 periodEnd.setMonth(periodEnd.getMonth() + 1);
 
                 await prisma.subscription.updateMany({
-                    where: { lsSubscriptionId },
+                    where: { paddleSubscriptionId: transaction.subscriptionId },
                     data: {
                         status: "active",
                         analysesUsedThisMonth: 0,
@@ -129,7 +128,7 @@ export async function POST(request: Request) {
             }
 
             default:
-                console.log(`[LemonSqueezy Webhook] Unhandled event: ${eventName}`);
+                console.log(`[Paddle Webhook] Unhandled event: ${eventName}`);
         }
 
         return NextResponse.json({ status: "ok" });
