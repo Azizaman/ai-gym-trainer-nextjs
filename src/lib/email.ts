@@ -3,10 +3,19 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const APP_NAME = "FormAI";
-const FROM_EMAIL = process.env.EMAIL_FROM || "FormAI <onboarding@resend.dev>";
+const FROM_EMAIL = process.env.EMAIL_FROM || "FormAI <noreply@support.formai.site>";
 
 export async function sendVerificationEmail(email: string, token: string) {
   const verifyUrl = `${process.env.AUTH_URL}/api/auth/verify-email?token=${token}`;
+
+  // Log the verification URL in development so you can click it
+  // even if Resend fails to send the email (e.g., due to unverified domain)
+  if (process.env.NODE_ENV !== "production") {
+    console.log("-----------------------------------------");
+    console.log(`Verify Email URL for ${email}:`);
+    console.log(verifyUrl);
+    console.log("-----------------------------------------");
+  }
 
   const { data, error } = await resend.emails.send({
     from: FROM_EMAIL,
@@ -76,6 +85,11 @@ export async function sendVerificationEmail(email: string, token: string) {
 
   if (error) {
     console.error("Resend Email Error:", error);
+    if (error.message?.includes("resend.dev is only available for testing")) {
+      console.error(
+        "Action Required: You must verify a domain in your Resend dashboard and set EMAIL_FROM in your .env file to send emails to other addresses."
+      );
+    }
   } else {
     console.log("Email sent successfully:", data);
   }
